@@ -1,5 +1,33 @@
 #include "shell.h"
+#include "read_buffer.c"
 
+/**
+ * _strtok - parse arguments
+ *@string: str argument
+ *
+ * Return: list of arguments
+ */
+
+char **_strtok(char *string)
+{
+	int BUF = 1024, pos = 0;
+	char **toks = malloc(sizeof(char) * BUF);
+	char *delim = " ";
+	char *tok;
+
+	if (!toks)
+		exit(EXIT_FAILURE);
+
+	tok = strtok(string, delim);
+	while (tok != NULL)
+	{
+		toks[pos] = tok;
+		tok = strtok(NULL, delim);
+		pos++;
+	}
+	toks[pos] = NULL;
+	return (toks);
+}
 /**
  * main - main loop for shell program
  * @argc: number of arguments
@@ -13,54 +41,40 @@ int main(int argc __attribute__((unused)),
 		char *argv[] __attribute__((unused)),
 		char *env[] __attribute__((unused)))
 {
+	int status;
 	char *buffer;
-	int nread = 0, status;
-	int mode = isatty(STDIN_FILENO);
-	size_t n;
+	char **toks;
 	pid_t child_pid;
 
-	if (!mode)
+	while (1)
 	{
-		nread = getline(&buffer, &n, stdin);
-		buffer[nread - 1] = '\0';
-		if (execve(buffer, argv, env) == -1)
+		/* Print prompt if only is tty */
+		if (isatty(STDIN_FILENO))
+			write(STDOUT_FILENO, "$ ", 3);
+		buffer = _read_buffer();
+		toks = _strtok(buffer);
+
+		child_pid = fork();
+
+		if (child_pid == -1)
 		{
-			fprintf(stderr, "%s: No such file or directory\n", argv[0]);
 			exit(EXIT_FAILURE);
 		}
-
-	}
-	else
-	{
-		while (mode)
+		if (child_pid == 0)
 		{
-			mode = isatty(STDIN_FILENO);
-			if (mode == 1)
-			{
-				write(STDOUT_FILENO, "#cisfun$ ", 10);
-				child_pid = fork();
+			status = execve(toks[0], toks, env);
+			if (status == -1)
+				exit(EXIT_FAILURE);
+		}
+		else
+		{
 
-				if (child_pid == 0)
-				{
-
-					nread = getline(&buffer, &n, stdin);
-					if (nread == -1)
-					{
-						write(STDOUT_FILENO, "\n", 2);
-						exit(EXIT_FAILURE);
-
-					}
-					buffer[nread - 1] = '\0';
-					if (execve(buffer, argv, NULL) == -1)
-					{
-						fprintf(stderr, "%s: No such file or directory\n", argv[0]);
-						exit(EXIT_FAILURE);
-					}
-				}
-				else
-					waitpid(child_pid, &status, 0);
-			}
+			waitpid(child_pid, &status, 0);
 		}
 	}
+
+		/* check if running from child process */
+	free(toks);
+	free(buffer);
 	return (0);
 }
