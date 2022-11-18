@@ -1,5 +1,4 @@
 #include "shell.h"
-#include "read_buffer.c"
 
 /**
  * _strtok - parse arguments
@@ -64,7 +63,10 @@ int main(int argc __attribute__((unused)),
 		{
 			status = execve(toks[0], toks, env);
 			if (status == -1)
+			{
+				fprintf(stderr, "%s: 1: %s: not found\n", toks[0], toks[2]);
 				exit(EXIT_FAILURE);
+			}
 		}
 		else
 		{
